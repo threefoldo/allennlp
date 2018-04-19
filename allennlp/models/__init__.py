@@ -11,6 +11,7 @@ from allennlp.models.model import Model
 from allennlp.models.reading_comprehension.bidaf import BidirectionalAttentionFlow
 from allennlp.models.semantic_role_labeler import SemanticRoleLabeler
 from allennlp.models.simple_tagger import SimpleTagger
+from allennlp.models.article_classifier import ArticleClassifier
 from allennlp.models.coreference_resolution.coref import CoreferenceResolver
 from allennlp.models.constituency_parser import SpanConstituencyParser
 from allennlp.models.biattentive_classification_network import BiattentiveClassificationNetwork

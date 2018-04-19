@@ -10,7 +10,7 @@ from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import TextField, LabelField
 from allennlp.data.instance import Instance
-from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
+from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer, CharacterTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
 
@@ -28,7 +28,7 @@ class ArticleDatasetReader(DatasetReader):
                  lazy: bool = False ) -> None:
         super().__init__(lazy)
 
-        self._tokenizer = tokenizer or WordTokenizer()
+        self._tokenizer = tokenizer or CharacterTokenizer()
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
 
     @classmethod
@@ -50,17 +50,17 @@ class ArticleDatasetReader(DatasetReader):
                 data = json.loads(line)
                 title = data['title']
                 abstract  = data['abstract']
-                venue = data['venue']
-                yield self.text_to_instance(title, abstract, venue)
+                label = data['label']
+                yield self.text_to_instance(title, abstract, label)
 
 
     @overrides
-    def text_to_instance(self, title:str, abstract:str, venue:str = None) -> Instance:
+    def text_to_instance(self, title:str, abstract:str, label:str = None) -> Instance:
         title_field = TextField(self._tokenizer.tokenize(title), self._token_indexers)
         abstract_field = TextField(self._tokenizer.tokenize(abstract), self._token_indexers)
         fields = {'title': title_field, 'abstract': abstract_field}
-        if venue is not None:
-            fields['label'] = LabelField(venue)
+        if label is not None:
+            fields['label'] = LabelField(label)
         return Instance(fields)
 
 

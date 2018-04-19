@@ -1,0 +1,26 @@
+[[source]]
+
+# url = "https://pypi.python.org/simple"
+url = "https://mirrors.aliyun.com/pypi/simple"
+name = "pypi"
+verify_ssl = true
+
+
+[packages]
+
+allennlp = "*"
+torch = "*"
+torchvision = "*"
+ipython = "*"
+line-profiler = "*"
+pytest = "*"
+flaky = "*"
+
+
+[dev-packages]
+
+
+
+[requires]
+
+python_version = "3.6"
