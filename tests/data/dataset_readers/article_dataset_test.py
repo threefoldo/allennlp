@@ -9,22 +9,21 @@ class TestArticleDatasetReader(AllenNlpTestCase):
         reader = ArticleDatasetReader()
         dataset = reader.read('tests/fixtures/articles.jsonl')
 
-        instance1 = {"title": ["Interferring", "Discourse", "Relations", "in", "Context"],
-                     "abstract": ["We", "investigate", "various", "contextual", "effects"],
-                     "venue": "ACL"}
+        instance1 = {
+            "title": ["张", "铭", "爽"],
+            "abstract": ["n", "o", "n", "e"],
+            "label": "人名"
+        }
+        instance2 = {
+            "title": ["白", "先", "勇"],
+            "abstract": ["n", "o", "n", "e"],
+            "label": "人名"
+        }
 
-        instance2 = {"title": ["GRASPER", ":", "A", "Permissive", "Planning", "Robot"],
-                     "abstract": ["Execut", "ion", "of", "classical", "plans"],
-                     "venue": "AI"}
-        instance3 = {"title": ["Route", "Planning", "under", "Uncertainty", ":", "The", "Canadian",
-                               "Traveller", "Problem"],
-                     "abstract": ["The", "Canadian", "Traveller", "problem", "is"],
-                     "venue": "AI"}
-
-        #assert len(dataset.instances) == 10
+        assert len(dataset) == 10
 
         fields = dataset[0].fields
         assert [t.text for t in fields['title'].tokens] == instance1['title']
         assert [t.text for t in fields['abstract'].tokens[:5]] == instance1['abstract']
-        assert fields['label'].label == instance1['venue']
+        assert fields['label'].label == instance1['label']
 

@@ -29,9 +29,22 @@ class ArticleClassifier(Model):
 
         self.text_field_embedder = text_field_embedder
         self.num_classes = vocab.get_vocab_size('labels')
+        print('vocabulary:', vocab.get_index_to_token_vocabulary('labels'), '\n')
         self.title_encoder = title_encoder
         self.abstract_encoder = abstract_encoder
         self.classifier_feedforward = classifier_feedforward
+
+        if text_field_embedder.get_output_dim() != title_encoder.get_input_dim():
+            raise ConfigurationError("The output dimension of the text_field_embedder must match the "
+                                     "input dimension of the title_encoder. Found {} and {}, "
+                                     "respectively.".format(text_field_embedder.get_output_dim(),
+                                                            title_encoder.get_input_dim()))
+        if text_field_embedder.get_output_dim() != abstract_encoder.get_input_dim():
+            raise ConfigurationError("The output dimension of the text_field_embedder must match the "
+                                     "input dimension of the abstract_encoder. Found {} and {}, "
+                                     "respectively.".format(text_field_embedder.get_output_dim(),
+                                                            abstract_encoder.get_input_dim()))
+
         self.metrics = {
             "accuracy": CategoricalAccuracy()
         }
@@ -74,10 +87,12 @@ class ArticleClassifier(Model):
         encoded_abstract = self.abstract_encoder(embedded_abstract, abstract_mask)
 
         logits = self.classifier_feedforward(torch.cat([encoded_title, encoded_abstract], dim=-1))
-        class_probabilities = F.softmax(logits, dim=0)
+        # class_probabilities = F.softmax(logits, dim=0)
 
-        output_dict = {'class_probabilities': class_probabilities}
+        # output_dict = {'class_probabilities': class_probabilities}
+        output_dict = {'logits': logits}
         if label is not None:
+            # print(logits, label)
             loss = self.loss(logits, label.squeeze(-1))
             for metric in self.metrics.values():
                 metric(logits, label.squeeze(-1))
@@ -93,9 +108,12 @@ class ArticleClassifier(Model):
 
     @overrides
     def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        predictions = output_dict['class_probabilities'].data.numpy()
+        class_probabilities = F.softmax(output_dict['logits'], dim=-1)
+        output_dict['class_probabilities'] = class_probabilities
+
+        predictions = class_probabilities.cpu().data.numpy()
         argmax_indices = np.argmax(predictions, axis=-1)
-        labels = [self.vocab.get_token_from_index(x, namespace="tokens") for x in argmax_indices]
+        labels = [self.vocab.get_token_from_index(x, namespace="labels") for x in argmax_indices]
         output_dict['label'] = labels
         return output_dict
 

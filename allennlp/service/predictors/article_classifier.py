@@ -15,8 +15,9 @@ class ArticleClassifierPredictor(Predictor):
         """
         Expects JSON that looks like ``{"source": "..."}``.
         """
-        source = json_dict["word"]
-        instance = self._dataset_reader.text_to_instance(source, "none")
+        title = json_dict.get('title') or json_dict.get('word')
+        abstract = json_dict.get('abstract') or 'none'
+        instance = self._dataset_reader.text_to_instance(title, abstract)
 
         # label_dict = self._model.vocab.get_index_to_token_vocabulary('labels')
         # all_labels = [label_dict[i] for i in range(len(label_dict))]
