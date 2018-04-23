@@ -1,0 +1,52 @@
+{
+  "dataset_reader": {
+    "type": "sequence_tagging",
+    "word_tag_delimiter": "/",
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+    }
+  },
+  "train_data_path": "data/ner_sample1_train.txt",
+  "validation_data_path": "data/ner_sample1_dev.txt",
+  "model": {
+    "type": "crf_tagger",
+    "text_field_embedder": {
+      "tokens": {
+        "type": "embedding",
+        "embedding_dim": 100,
+        "pretrained_file": "data/glove.6B.100d.txt.gz",
+        "trainable": true
+      },
+    },
+    "encoder": {
+      "type": "gru",
+      "input_size": 100,
+      "hidden_size": 300,
+      "num_layers": 2,
+      "dropout": 0.5,
+      "bidirectional": true
+    },
+    "regularizer": [
+      [
+        "transitions$",
+        {
+          "type": "l2",
+          "alpha": 0.01
+        }
+      ]
+    ]
+  },
+  "iterator": {
+    "type": "basic",
+    "batch_size": 32
+  },
+  "trainer": {
+    "optimizer": "adam",
+    "num_epochs": 50,
+    "patience": 10,
+    "cuda_device": -1
+  }
+}
