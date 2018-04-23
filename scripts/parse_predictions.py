@@ -18,7 +18,7 @@ def parse(input_data, prediction):
         return None
 
     return {
-        'word': in_json['title'],
+        'word': in_json.get('title') or in_json.get('word'),
         'label': in_json['label'],
         'pred': pred_json['label'],
         'score': max(pred_json['class_probabilities'])
