@@ -1,0 +1,58 @@
+{
+    "dataset_reader": {
+        "type": "article",
+        "tokenizer": {
+            "type": "character"
+        }
+    },
+    "train_data_path": "data/ner0419_train.jsonl",
+    "validation_data_path": "data/ner0419_dev.jsonl",
+    "iterator": {
+        "type": "bucket",
+        "sorting_keys": [["abstract", "num_tokens"], ["title", "num_tokens"]],
+        "batch_size": 64
+    },
+    "trainer": {
+        "num_epochs": 40,
+        "patience": 10,
+        "cuda_device": 0,
+        "grad_clipping": 5.0,
+        "validation_metric": "+accuracy",
+        "optimizer": {
+            "type": "adagrad"
+        }
+    },
+    "model": {
+        "type": "article_classifier",
+        "text_field_embedder": {
+            "tokens": {
+                "type": "embedding",
+                "embedding_dim": 100,
+                "trainable": False
+            }
+        },
+        "title_encoder": {
+            "type": "lstm",
+            "bidirectional": True,
+            "input_size": 100,
+            "hidden_size": 100,
+            "num_layers": 1,
+            "dropout": 0.2
+        },
+        "abstract_encoder": {
+            "type": "lstm",
+            "bidirectional": True,
+            "input_size": 100,
+            "hidden_size": 100,
+            "num_layers": 1,
+            "dropout": 0.2
+        },
+        "classifier_feedforward": {
+            "input_dim": 400,
+            "num_layers": 2,
+            "hidden_dims": [200, 4],
+            "activations": ["relu", "linear"],
+            "dropout": [0.2, 0.0]
+        }
+    }
+}

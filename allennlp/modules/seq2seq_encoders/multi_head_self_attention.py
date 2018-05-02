@@ -98,6 +98,7 @@ class MultiHeadSelfAttention(Seq2SeqEncoder):
         """
         num_heads = self._num_heads
 
+        # print('\n>>> inputs:', inputs)
         batch_size, timesteps, _ = inputs.size()
         if mask is None:
             mask = Variable(inputs.data.new(batch_size, timesteps).fill_(1.0))
@@ -111,6 +112,7 @@ class MultiHeadSelfAttention(Seq2SeqEncoder):
         queries = queries.contiguous()
         keys = keys.contiguous()
         values = torch.cat(values, -1).contiguous()
+        # print('\n>>> query:', queries, '\n>>> key:', keys, '\n>>> value:', values)
         # Shape (num_heads * batch_size, timesteps, values_dim / num_heads)
         values_per_head = values.view(batch_size, timesteps, num_heads, int(self._values_dim/num_heads))
         values_per_head = values_per_head.transpose(1, 2).contiguous()
@@ -129,10 +131,14 @@ class MultiHeadSelfAttention(Seq2SeqEncoder):
         # shape (num_heads * batch_size, timesteps, timesteps)
         scaled_similarities = torch.bmm(queries_per_head, keys_per_head.transpose(1, 2)) / self._scale
 
+        # print('\n>>> scaled_similaried:', scaled_similarities)
+
         # shape (num_heads * batch_size, timesteps, timesteps)
         # Normalise the distributions, using the same mask for all heads.
         attention = last_dim_softmax(scaled_similarities, mask.repeat(1, num_heads).view(batch_size * num_heads, timesteps))
         attention = self._attention_dropout(attention)
+
+        # print('\n>>> attention:', attention)
 
         # Take a weighted sum of the values with respect to the attention
         # distributions for each element in the num_heads * batch_size dimension.
@@ -150,6 +156,7 @@ class MultiHeadSelfAttention(Seq2SeqEncoder):
         # Project back to original input size.
         # shape (batch_size, timesteps, input_size)
         outputs = self._output_projection(outputs)
+        # print('\n>>> output:', outputs)
         return outputs
 
     @classmethod

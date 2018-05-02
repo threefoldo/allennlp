@@ -24,8 +24,8 @@
 	"type": "multi_head_self_attention",
 	"num_heads": 4,
 	"input_dim": 100,
-	"attention_dim": 400,
-	"values_dim": 100,
+	"attention_dim": 200,
+	"values_dim": 100
     },
     "regularizer": [
       [
@@ -39,7 +39,7 @@
   },
   "iterator": {
     "type": "basic",
-    "batch_size": 32
+    "batch_size": 2
   },
   "trainer": {
     "optimizer": "adam",
