@@ -15,6 +15,8 @@ from allennlp.data.dataset_readers.penn_tree_bank import PennTreeBankConstituenc
 from allennlp.data.dataset_readers.reading_comprehension import SquadReader, TriviaQaReader
 from allennlp.data.dataset_readers.jsonl import JsonlReader
 from allennlp.data.dataset_readers.article import ArticleDatasetReader
+from allennlp.data.dataset_readers.twitter_data1 import Twitter1DatasetReader
+from allennlp.data.dataset_readers.twitter_data2 import Twitter2DatasetReader
 from allennlp.data.dataset_readers.semantic_role_labeling import SrlReader
 from allennlp.data.dataset_readers.seq2seq import Seq2SeqDatasetReader
 from allennlp.data.dataset_readers.sequence_tagging import SequenceTaggingDatasetReader
