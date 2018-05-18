@@ -13,7 +13,7 @@ from allennlp.modules import FeedForward, Seq2SeqEncoder, TextFieldEmbedder, Max
 from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
-from allennlp.training.metrics import CategoricalAccuracy
+from allennlp.training.metrics import CategoricalAccuracy, F1Measure
 
 
 @Model.register("bcn")
@@ -109,8 +109,9 @@ class BiattentiveClassificationNetwork(Model):
                                "Number of classes.")
 
         self.metrics = {
-                "accuracy": CategoricalAccuracy(),
-                "accuracy3": CategoricalAccuracy(top_k=3)
+            "f1": F1Measure(vocab.get_token_index('1', namespace='labels'))
+            # "accuracy": CategoricalAccuracy(),
+            # "accuracy3": CategoricalAccuracy(top_k=3)
         }
         self.loss = torch.nn.CrossEntropyLoss()
         initializer(self)
@@ -201,7 +202,12 @@ class BiattentiveClassificationNetwork(Model):
 
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        return {metric_name: metric.get_metric(reset) for metric_name, metric in self.metrics.items()}
+        # return {metric_name: metric.get_metric(reset) for metric_name, metric in self.metrics.items()}
+        precision, recall, f1_measure = self.metrics['f1'].get_metric(reset)
+        return { "precision": precision,
+                 "recall": recall,
+                 "f1_measure": f1_measure }
+
 
     @classmethod
     def from_params(cls, vocab: Vocabulary, params: Params) -> 'BiattentiveClassificationNetwork':

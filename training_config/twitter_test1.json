@@ -2,8 +2,17 @@
     "dataset_reader": {
         "type": "twitter-data1",
         "tokenizer": {
-            "type": "character"
-        }
+            "type": "word",
+	    "word_splitter": {
+		"type": "spacy"
+	    }
+        },
+	"token_indexers": {
+	    "tokens": {
+		"type": "single_id",
+		"lowercase_tokens": true
+	    }
+	}
     },
     "train_data_path": "data/test1/twitter_train.txt",
     "validation_data_path": "data/test1/twitter_dev.txt",
@@ -18,7 +27,7 @@
         "patience": 10,
         "cuda_device": 0,
         "grad_clipping": 5.0,
-        "validation_metric": "+accuracy",
+        "validation_metric": "+f1_measure",
         "optimizer": {
             "type": "adagrad"
         }
@@ -28,24 +37,25 @@
         "text_field_embedder": {
             "tokens": {
                 "type": "embedding",
+		"pretrained_file": "data/glove.6B.100d.txt.gz",
                 "embedding_dim": 100,
                 "trainable": False
             }
         },
         "encoder": {
-            "type": "lstm",
+            "type": "gru",
             "bidirectional": True,
             "input_size": 100,
             "hidden_size": 100,
-            "num_layers": 2,
-            "dropout": 0.2
+            "num_layers": 4,
+            "dropout": 0.1
         },
         "classifier_feedforward": {
             "input_dim": 200,
             "num_layers": 2,
             "hidden_dims": [100, 2],
             "activations": ["relu", "linear"],
-            "dropout": [0.2, 0.0]
+            "dropout": [0.1, 0.0]
         }
     }
 }

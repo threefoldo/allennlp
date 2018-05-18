@@ -6,7 +6,7 @@ from allennlp.modules import FeedForward, MatrixAttention
 from allennlp.modules import TextFieldEmbedder, Seq2VecEncoder
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn.util import get_text_field_mask
-from allennlp.training.metrics import CategoricalAccuracy
+from allennlp.training.metrics import CategoricalAccuracy, F1Measure
 from typing import Dict, Optional
 import torch
 import numpy as np
@@ -28,7 +28,7 @@ class BinaryClassifier(Model):
 
         self.text_field_embedder = text_field_embedder
         self.num_classes = vocab.get_vocab_size('labels')
-
+        
         self.encoder = encoder
         self.classifier_feedforward = classifier_feedforward
 
@@ -39,9 +39,11 @@ class BinaryClassifier(Model):
                                                             encoder.get_input_dim()))
 
         self.metrics = {
-            "accuracy": CategoricalAccuracy()
+            # "accuracy": CategoricalAccuracy(),
+            "f1": F1Measure(vocab.get_token_index('1', namespace='labels'))
         }
         self.loss = torch.nn.CrossEntropyLoss()
+        # self.loss = torch.nn.NLLLoss()
         initializer(self)
 
 
@@ -89,7 +91,11 @@ class BinaryClassifier(Model):
 
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
-        return {metric_name: metric.get_metric(reset) for metric_name, metric in self.metrics.items()}
+        # return {metric_name: metric.get_metric(reset) for metric_name, metric in self.metrics.items()}
+        precision, recall, f1_measure = self.metrics['f1'].get_metric(reset)
+        return { "precision": precision,
+                 "recall": recall,
+                 "f1_measure": f1_measure }
 
 
     @overrides
