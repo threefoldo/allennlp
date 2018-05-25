@@ -183,19 +183,18 @@ def tag_span(tokenizer, text, tag):
     tags = []
     if tag == 'O':
         for tok in tokenizer(text):
-            if tok.text.strip() == '':
-                continue
             # check "..."
             if tok.text.find('...') >= 0:
                 start = tok.text.find('...')
                 if start > 0:
                     tags.append(tok.text[:start] + '/O')
                 tags.append('.../O')
-                if start + 4 < len(tok.text):
-                    tags.append(tok.text[start + 4:] + '/O')
+                if start + 3 < len(tok.text):
+                    tags.append(tok.text[start + 3:] + '/O')
             # check punctations
             elif tok.text[-1] in [',', '.', '!', ':', '~']:
-                tags.append(tok.text[:-1] + '/O')
+                if len(tok.text) > 1:
+                    tags.append(tok.text[:-1] + '/O')
                 tags.append(tok.text[-1] + '/O')
             else:
                 tags.append(tok.text + '/O')
@@ -205,6 +204,16 @@ def tag_span(tokenizer, text, tag):
                 tags.append(tok.text + '/B-' + tag)
             else:
                 tags.append(tok.text + '/I-' + tag)
+
+    # check empty token
+    new_tags = []
+    for t in tags:
+        items = t.split('/')
+        if len(items) < 2:
+            continue
+        if items[0].strip() == '':
+            continue
+        new_tags.append(t)
     return tags
 
 
