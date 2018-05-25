@@ -32,3 +32,54 @@ Metrics: {
   "best_epoch": 15
 }
 
+rewrite sentence
+Metrics: {
+  "training_duration": "00:01:47",
+  "training_start_epoch": 0,
+  "training_epochs": 14,
+  "training_precision": 0.973276815333579,
+  "training_recall": 0.980505012996658,
+  "training_f1_measure": 0.9768775434701683,
+  "training_loss": 0.06612313538789749,
+  "validation_precision": 0.4999999999999993,
+  "validation_recall": 0.5964912280701744,
+  "validation_f1_measure": 0.5439999999999495,
+  "validation_loss": 0.3665074408054352,
+  "best_validation_f1_measure": 0.5693430656933813,
+  "best_epoch": 9
+}
+
+combined together
+Metrics: {
+  "training_duration": "00:01:35",
+  "training_start_epoch": 0,
+  "training_epochs": 8,
+  "training_precision": 0.9607540173053152,
+  "training_recall": 0.9658278968623796,
+  "training_f1_measure": 0.9632842757551786,
+  "training_loss": 0.12693285942077637,
+  "validation_precision": 0.5294117647058814,
+  "validation_recall": 0.473684210526315,
+  "validation_f1_measure": 0.4999999999999493,
+  "validation_loss": 0.31590428948402405,
+  "best_validation_f1_measure": 0.5205479452054311,
+  "best_epoch": 3
+} Metrics: {
+  "training_duration": "00:07:41",
+  "training_start_epoch": 0,
+  "training_epochs": 9,
+  "training_precision": 0.9930097977425084,
+  "training_recall": 0.9932943603851444,
+  "training_f1_measure": 0.993152058680217,
+  "training_loss": 0.024216042831540108,
+  "validation_precision": 0.450704225352112,
+  "validation_recall": 0.5614035087719288,
+  "validation_f1_measure": 0.4999999999999499,
+  "validation_loss": 0.655613899230957,
+  "best_validation_f1_measure": 0.5468749999999498,
+  "best_epoch": 4
+}
+
+
+rewrite common words and nickname
+

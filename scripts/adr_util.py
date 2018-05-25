@@ -1,6 +1,9 @@
+import sys
 import random
 import re
-
+import string
+import spacy
+from spacy.tokenizer import Tokenizer
 
 
 head_word = re.compile('^[A-Z]: ')
@@ -30,6 +33,9 @@ def save_samples(samples, outfile):
             fp.write('\t'.join(sample))
 
 def balance_samples(samples):
+    '''
+    balance positive and negative samples
+    '''
     pos = []
     neg = []
     for i, s in enumerate(samples):
@@ -44,6 +50,9 @@ def balance_samples(samples):
     return balanced
 
 def count_words(samples):
+    '''
+    count words in all samples
+    '''
     all_words = {}
     for i, sample in enumerate(samples):
         sent = sample[3]
@@ -54,6 +63,9 @@ def count_words(samples):
     return all_words
 
 def expand_samples(all_words, samples):
+    '''
+    expand samples by replacing similar words from a dictionary
+    '''
     for word in all_words.keys():
         for sim in similars:
             if word not in sim:
@@ -71,3 +83,175 @@ def expand_samples(all_words, samples):
                     new_sample = [samples[sid][0], samples[sid][1], samples[sid][2], samples[sid][3].replace(orig_word, other)]
                     print(samples[sid], '\n\t', new_sample)
                     samples.append(new_sample)
+
+def rewrite_nickname(samples):
+    '''
+    @nick can be rewritten in many forms without changing the meaning
+    '''
+    new_samples = []
+    for sample in samples:
+        if not sample[3]:
+            continue
+        nicks = []
+        for word in sample[3].split():
+            if word.startswith('@'):
+                nicks.append(word)
+        for name in nicks:
+            for _ in range(10):
+                randstr = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+                sent = sample[3].replace(name, '@' + randstr)
+                new_samples.append(['888', '888', sample[2], sent])
+    samples.extend(new_samples)
+
+
+def filter_ner(infile, outfile):
+    '''
+    extract NER samples from merge_train and merge_test
+    '''
+    writer = open(outfile, 'w')
+    with open(infile) as fp:
+        for line in fp:
+            items = line.replace('/', '').split()
+            if len(items) < 4:
+                continue
+            tags = items[2].split('-')
+            if len(tags) < 2:
+                continue
+            if items[3] == 'not' and items[4] == 'exist....':
+                continue
+            annotation = []
+            for w in items[3:]:
+                punc = ''
+                if w[-1] in [',', '.', ':', '!']:
+                    punc = w[-1]
+                    w = w[:-1]
+                if w.lower() == tags[0]:
+                    annotation.append(w + '/' + 'B-DRUG')
+                else:
+                    annotation.append(w + '/' + 'O')
+                if punc != '':
+                    annotation.append(punc + '/' + 'O')
+            print(' '.join(annotation))
+            writer.write('\t'.join(annotation) + '\n')
+    writer.close()
+
+def read_tweets(infiles):
+    tweets = {}
+    # load all tweets
+    for f in infiles:
+        with open(f) as fp:
+            for line in fp:
+                items = line.split('\t')
+                if items[3].startswith('not exists'):
+                    continue
+                tweets[items[2]] = items[3].lower()
+    return tweets
+
+
+def relocate_span(tweets, ann_file):
+    '''
+    align annotations file with tweets
+    the start and end in annotation files may not match with tweet files
+    '''
+    # load all annotations
+    annotations = {}
+    with open(ann_file) as fp:
+        for line in fp:
+            tid, start, end, semantic, span, drug1, drug2 = line.split('\t')
+            span = span.lower()
+            if tweets.get(tid) is None or semantic != 'ADR':
+                continue
+            if annotations.get(tid) is None:
+                annotations[tid] = []
+
+            # relocate the span
+            last_start, last_end = 0, 0
+            if len(annotations[tid]) > 0:
+                last_start, last_end = annotations[tid][-1]
+            new_start = tweets[tid].find(span, last_end)
+            new_end = new_start + len(span)
+            if new_start >= 0:
+                # print('span: %s start: %d, end: %d' % (span, new_start, new_end))
+                annotations[tid].append((new_start, new_end))
+    return annotations
+
+
+def tag_span(tokenizer, text, tag):
+    '''
+    convert all tokens in text with a specific tag
+    '''
+    tags = []
+    if tag == 'O':
+        for tok in tokenizer(text):
+            if tok.text.strip() == '':
+                continue
+            # check "..."
+            if tok.text.find('...') >= 0:
+                start = tok.text.find('...')
+                if start > 0:
+                    tags.append(tok.text[:start] + '/O')
+                tags.append('.../O')
+                if start + 4 < len(tok.text):
+                    tags.append(tok.text[start + 4:] + '/O')
+            # check punctations
+            elif tok.text[-1] in [',', '.', '!', ':', '~']:
+                tags.append(tok.text[:-1] + '/O')
+                tags.append(tok.text[-1] + '/O')
+            else:
+                tags.append(tok.text + '/O')
+    else:
+        for tok in tokenizer(text):
+            if len(tags) < 1:
+                tags.append(tok.text + '/B-' + tag)
+            else:
+                tags.append(tok.text + '/I-' + tag)
+    return tags
+
+
+def align_annotations(tweets, annotations):
+    '''
+    fetch raw tweet, then add tags based on annotations
+    '''
+    nlp = spacy.load('en_core_web_sm')
+    tokenizer = Tokenizer(nlp.vocab)
+
+    result = []
+    for tid in annotations.keys():
+        text = tweets[tid]
+        spans = annotations[tid]
+        curr = 0
+        last_end = 0
+        aligned = []
+        while curr < len(spans):
+            start, end = spans[curr]
+            aligned.extend(tag_span(tokenizer, text[last_end: start], 'O'))
+            aligned.extend(tag_span(tokenizer, text[start: end], 'ADR'))
+            last_end = end
+            curr += 1
+        if last_end < len(text):
+            aligned.extend(tag_span(tokenizer, text[last_end:], 'O'))
+        result.append(aligned)
+    return result
+
+
+def annotate_tweets(orig_file, ann_file, out_file):
+    '''
+    read tweets and annotations from files and output IOB data
+    '''
+    tweets = read_tweets(orig_file)
+    annotations = relocate_span(tweets, ann_file)
+    with open(out_file, 'w') as fp:
+        for aligned in align_annotations(tweets, annotations):
+            fp.write('\t'.join(aligned) + '\n')
+
+if __name__ == '__main__':
+    if len(sys.argv) < 3:
+        print('Usage: python adr_util.py ann.tsv train.txt')
+        sys.exit(0)
+    ann_file = sys.argv[1]
+    out_file = sys.argv[2]
+    annotate_tweets(['data/orig_tweets/train_tweet.txt', 'data/orig_tweets/test_tweet.txt'],
+                    ann_file, out_file)
+
+
+
