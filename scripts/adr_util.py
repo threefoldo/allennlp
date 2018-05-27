@@ -84,26 +84,6 @@ def expand_samples(all_words, samples):
                     print(samples[sid], '\n\t', new_sample)
                     samples.append(new_sample)
 
-def rewrite_nickname(samples):
-    '''
-    @nick can be rewritten in many forms without changing the meaning
-    '''
-    new_samples = []
-    for sample in samples:
-        if not sample[3]:
-            continue
-        nicks = []
-        for word in sample[3].split():
-            if word.startswith('@'):
-                nicks.append(word)
-        for name in nicks:
-            for _ in range(10):
-                randstr = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-                sent = sample[3].replace(name, '@' + randstr)
-                new_samples.append(['888', '888', sample[2], sent])
-    samples.extend(new_samples)
-
-
 def filter_ner(infile, outfile):
     '''
     extract NER samples from merge_train and merge_test
@@ -142,13 +122,47 @@ def read_tweets(infiles):
         with open(f) as fp:
             for line in fp:
                 items = line.split('\t')
-                if items[3].startswith('not exists'):
+                if items[3].startswith('not exist'):
                     continue
-                tweets[items[2]] = items[3].lower()
+                tweets[items[2]] = [items[3].lower().strip()]
     return tweets
 
 
-def relocate_span(tweets, ann_file):
+def rewrite_nickname(sample):
+    '''
+    @nick can be rewritten in many forms without changing the meaning
+    '''
+    nicks = []
+    for word in sample.split():
+        if word.startswith('@'):
+            nicks.append(word)
+
+    # generate 3 different name for each nickname
+    new_samples = []
+    for name in nicks:
+        for _ in range(3):
+            randstr = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+            sent = sample.replace(name, '@' + randstr)
+            new_samples.append(['888', '888', sample[2], sent])
+    return new_samples
+
+def locate_spans(sent, phrases):
+    '''
+    find all locations of phrases in a sentence
+    '''
+    spans = []
+    for phrase in phrases:
+        last_end = 0
+        while last_end < len(sent):
+            start = sent.find(phrase, last_end)
+            if start < 0:
+                break
+            last_end = start + len(phrase)
+            spans.append((start, last_end))
+    return sorted(spans)
+
+
+def update_annotations(tweets, ann_file):
     '''
     align annotations file with tweets
     the start and end in annotation files may not match with tweet files
@@ -161,18 +175,10 @@ def relocate_span(tweets, ann_file):
             span = span.lower()
             if tweets.get(tid) is None or semantic != 'ADR':
                 continue
-            if annotations.get(tid) is None:
-                annotations[tid] = []
 
-            # relocate the span
-            last_start, last_end = 0, 0
-            if len(annotations[tid]) > 0:
-                last_start, last_end = annotations[tid][-1]
-            new_start = tweets[tid].find(span, last_end)
-            new_end = new_start + len(span)
-            if new_start >= 0:
-                # print('span: %s start: %d, end: %d' % (span, new_start, new_end))
-                annotations[tid].append((new_start, new_end))
+            annotations[tid] = []
+            for tweet in tweets.get(tid):
+                annotations[tid].append(locate_spans(tweet, [span, drug1]))
     return annotations
 
 
@@ -205,16 +211,16 @@ def tag_span(tokenizer, text, tag):
             else:
                 tags.append(tok.text + '/I-' + tag)
 
-    # check empty token
+    # finally, check empty token
     new_tags = []
     for t in tags:
         items = t.split('/')
         if len(items) < 2:
             continue
-        if items[0].strip() == '':
+        if len(items[0]) < 1 or items[0].strip() == '':
             continue
         new_tags.append(t)
-    return tags
+    return new_tags
 
 
 def align_annotations(tweets, annotations):
@@ -226,20 +232,23 @@ def align_annotations(tweets, annotations):
 
     result = []
     for tid in annotations.keys():
-        text = tweets[tid]
-        spans = annotations[tid]
-        curr = 0
-        last_end = 0
-        aligned = []
-        while curr < len(spans):
-            start, end = spans[curr]
-            aligned.extend(tag_span(tokenizer, text[last_end: start], 'O'))
-            aligned.extend(tag_span(tokenizer, text[start: end], 'ADR'))
-            last_end = end
-            curr += 1
-        if last_end < len(text):
-            aligned.extend(tag_span(tokenizer, text[last_end:], 'O'))
-        result.append(aligned)
+        for i in range(len(tweets[tid])):
+            text = tweets[tid][i]
+            spans = annotations[tid][i]
+            curr = 0
+            last_end = 0
+            aligned = []
+            while curr < len(spans):
+                start, end = spans[curr]
+                aligned.extend(tag_span(tokenizer, text[last_end: start], 'O'))
+                aligned.extend(tag_span(tokenizer, text[start: end], 'ADR'))
+                last_end = end
+                curr += 1
+            if last_end < len(text):
+                aligned.extend(tag_span(tokenizer, text[last_end:], 'O'))
+            # print('\norig:', tweets[tid])
+            # print(' '.join(aligned))
+            result.append(aligned)
     return result
 
 
@@ -248,10 +257,16 @@ def annotate_tweets(orig_file, ann_file, out_file):
     read tweets and annotations from files and output IOB data
     '''
     tweets = read_tweets(orig_file)
-    annotations = relocate_span(tweets, ann_file)
+    for tid in tweets:
+        tweets[tid].extend(rewrite_nickname(tweets[tid][0]))
+
+    annotations = update_annotations(tweets, ann_file)
     with open(out_file, 'w') as fp:
-        for aligned in align_annotations(tweets, annotations):
-            fp.write('\t'.join(aligned) + '\n')
+        all_data = list(align_annotations(tweets, annotations))
+        for _ in range(5):
+            random.shuffle(all_data)
+        for aligned in all_data:
+            fp.write(' '.join(aligned) + '\n')
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
@@ -261,6 +276,3 @@ if __name__ == '__main__':
     out_file = sys.argv[2]
     annotate_tweets(['data/orig_tweets/train_tweet.txt', 'data/orig_tweets/test_tweet.txt'],
                     ann_file, out_file)
-
-
-
