@@ -1,0 +1,68 @@
+{
+  "dataset_reader": {
+    "type": "sequence_tagging",
+    "word_tag_delimiter": "/",
+    "token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+        "token_characters": {
+            "type": "characters"
+        }
+    }
+  },
+  "train_data_path": "data/adr-ner-train8.txt",
+  "validation_data_path": "data/adr-ner-test8.txt",
+  "model": {
+    "type": "crf_tagger",
+    "text_field_embedder": {
+      "tokens": {
+        "type": "embedding",
+        "embedding_dim": 100,
+          "pretrained_file": "data/glove.6B.100d.txt.gz",
+          "trainable": false
+      },
+        "token_characters": {
+            "type": "character_encoding",
+            "embedding": {
+                "num_embeddings": 81,
+                "embedding_dim": 30
+            },
+            "encoder": {
+                "type": "cnn",
+                "embedding_dim": 30,
+                "num_filters": 50,
+                "ngram_filter_sizes": [8]
+            }
+        }
+    },
+    "encoder": {
+      "type": "gru",
+      "input_size": 150,
+      "hidden_size": 200,
+      "num_layers": 2,
+	"dropout": 0.4,
+	"bidirectional": true
+    },
+    "regularizer": [
+      [
+        "transitions$",
+        {
+          "type": "l2",
+          "alpha": 0.02
+        }
+      ]
+    ]
+  },
+  "iterator": {
+    "type": "basic",
+    "batch_size": 24
+  },
+  "trainer": {
+    "optimizer": "adam",
+    "num_epochs": 40,
+    "patience": 10,
+    "cuda_device": 0
+  }
+}

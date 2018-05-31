@@ -117,6 +117,8 @@ def filter_ner(infile, outfile):
 
 def read_tweets(infiles):
     tweets = {}
+    nickname = re.compile('@[a-z0-9_]+')
+
     # load all tweets
     for f in infiles:
         with open(f) as fp:
@@ -124,7 +126,9 @@ def read_tweets(infiles):
                 items = line.split('\t')
                 if items[3].startswith('not exist'):
                     continue
-                tweets[items[2]] = [items[3].lower().strip()]
+                text = items[3].lower().strip()
+                text = nickname.sub('@name', text)
+                tweets[items[2]] = [text]
     return tweets
 
 
@@ -142,9 +146,9 @@ def rewrite_nickname(sample):
     for name in nicks:
         for _ in range(3):
             randstr = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-            sent = sample.replace(name, '@' + randstr)
-            new_samples.append(['888', '888', sample[2], sent])
+            new_samples.append(sample.replace(name, '@' + randstr))
     return new_samples
+
 
 def locate_spans(sent, phrases):
     '''
@@ -177,50 +181,89 @@ def update_annotations(tweets, ann_file):
                 continue
 
             annotations[tid] = []
-            for tweet in tweets.get(tid):
-                annotations[tid].append(locate_spans(tweet, [span, drug1]))
+            for sent in tweets.get(tid):
+                annotations[tid].append(locate_spans(sent, [span, drug1]))
     return annotations
+
+re_ellipse = re.compile('\.\.\.+')
+
+def check_ellipse(token):
+    token = re_ellipse.sub('...', token)
+    new_tokens = []
+    for item in token.split('...'):
+        if len(item) > 0:
+            new_tokens.append(item.strip())
+            new_tokens.append('...')
+
+    # if token is '...'
+    if re_ellipse.match(token) and len(new_tokens) < 1:
+        return ['...']
+
+    if token.endswith('...'):
+        return new_tokens
+    return new_tokens[:-1]
+
+def split_mark(token):
+    '''
+    check last character
+    '''
+
+    # check special cases
+    if token == '...':
+        return [token]
+
+    new_tokens = []
+    last_token = ''
+    for ch in token:
+        if ch in [',', '!', ':', '~', '"']:
+            if len(last_token) > 0:
+                new_tokens.append(last_token)
+            new_tokens.append(ch)
+            last_token = ''
+        else:
+            last_token += ch
+
+    # check period mark '.' at the end
+    if len(last_token) > 0:
+        if last_token[-1] == '.':
+            new_tokens.append(last_token[:-1])
+            new_tokens.append('.')
+        else:
+            new_tokens.append(last_token)
+    return new_tokens
+
+
+def transform(text):
+    '''
+    pass through all transform which accept a string and return a list
+    '''
+    tokens, new_tokens = [text], []
+    for tr in [check_ellipse, split_mark]:
+        for tok in tokens:
+            if tok and len(tok) > 0:
+                new_tokens.extend(tr(tok))
+        tokens, new_tokens = new_tokens, []
+    return tokens
 
 
 def tag_span(tokenizer, text, tag):
     '''
     convert all tokens in text with a specific tag
     '''
-    tags = []
-    if tag == 'O':
-        for tok in tokenizer(text):
-            # check "..."
-            if tok.text.find('...') >= 0:
-                start = tok.text.find('...')
-                if start > 0:
-                    tags.append(tok.text[:start] + '/O')
-                tags.append('.../O')
-                if start + 3 < len(tok.text):
-                    tags.append(tok.text[start + 3:] + '/O')
-            # check punctations
-            elif tok.text[-1] in [',', '.', '!', ':', '~']:
-                if len(tok.text) > 1:
-                    tags.append(tok.text[:-1] + '/O')
-                tags.append(tok.text[-1] + '/O')
-            else:
-                tags.append(tok.text + '/O')
-    else:
-        for tok in tokenizer(text):
-            if len(tags) < 1:
-                tags.append(tok.text + '/B-' + tag)
-            else:
-                tags.append(tok.text + '/I-' + tag)
+    tokens = []
+    for tok in tokenizer(text):
+        tokens.extend(transform(tok.text))
 
-    # finally, check empty token
-    new_tags = []
-    for t in tags:
-        items = t.split('/')
-        if len(items) < 2:
-            continue
-        if len(items[0]) < 1 or items[0].strip() == '':
-            continue
-        new_tags.append(t)
-    return new_tags
+    if tag == 'O':
+        return [(tok, 'O') for tok in tokens]
+
+    result = []
+    for tok in tokenizer(text):
+        if len(result) < 1:
+            result.append((tok, 'B-' + tag))
+        else:
+            result.append((tok, 'I-' + tag))
+    return result
 
 
 def align_annotations(tweets, annotations):
@@ -232,6 +275,7 @@ def align_annotations(tweets, annotations):
 
     result = []
     for tid in annotations.keys():
+        assert(len(tweets[tid]) == len(annotations[tid]))
         for i in range(len(tweets[tid])):
             text = tweets[tid][i]
             spans = annotations[tid][i]
@@ -268,11 +312,27 @@ def annotate_tweets(orig_file, ann_file, out_file):
         for aligned in all_data:
             fp.write(' '.join(aligned) + '\n')
 
+def annotate_conll(orig_file, ann_file, out_file):
+    tweets = read_tweets(orig_file)
+    for tid in tweets:
+        tweets[tid].extend(rewrite_nickname(tweets[tid][0]))
+
+    annotations = update_annotations(tweets, ann_file)
+    with open(out_file, 'w') as fp:
+        fp.write('-DOCSTART-\t-X-\t-X-\tO\n\n')
+        all_data = list(align_annotations(tweets, annotations))
+        for _ in range(5):
+            random.shuffle(all_data)
+        for aligned in all_data:
+            for word, tag in aligned:
+                fp.write('%s\tx\tx\t%s\n' % (word, tag))
+            fp.write('\n')
+
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print('Usage: python adr_util.py ann.tsv train.txt')
         sys.exit(0)
     ann_file = sys.argv[1]
     out_file = sys.argv[2]
-    annotate_tweets(['data/orig_tweets/train_tweet.txt', 'data/orig_tweets/test_tweet.txt'],
+    annotate_conll(['data/orig_tweets/train_tweet.txt', 'data/orig_tweets/test_tweet.txt'],
                     ann_file, out_file)
