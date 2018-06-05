@@ -14,6 +14,7 @@ pytest = "*"
 flaky = "*"
 jupyterlab = "*"
 matplotlib = "*"
+pymongo = "*"
 
 [dev-packages]
 

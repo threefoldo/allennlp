@@ -52,6 +52,8 @@ class CrfTagger(Model):
         self.label_namespace = label_namespace
         self.text_field_embedder = text_field_embedder
         self.num_tags = self.vocab.get_vocab_size(label_namespace)
+        print('number of tags:', self.num_tags)
+
         self.encoder = encoder
         self.tag_projection_layer = TimeDistributed(Linear(self.encoder.get_output_dim(),
                                                            self.num_tags))
