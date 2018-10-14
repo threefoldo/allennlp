@@ -7,9 +7,45 @@ doc/_build/
 .pytest_cache/
 
 # build artifacts
-allennlp.egg-info/
+
 .eggs/
+.mypy_cache
+allennlp.egg-info/
 build/
 dist/
+<<<<<<< HEAD
 .mypy_cache
 data/
+=======
+
+
+# dev tools
+
+.envrc
+.python-version
+
+
+# jupyter notebooks
+
+.ipynb_checkpoints
+
+
+# miscellaneous
+
+.cache/
+allennlp/tools/EVALB/evalb.dSYM/
+doc/_build/
+
+
+# python
+
+*.pyc
+*.pyo
+__pycache__
+
+
+# testing and continuous integration
+
+.coverage
+.pytest_cache/
+>>>>>>> 3753b0b223c731c3361f39bd994b1cd297f54cd1
